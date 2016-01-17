@@ -181,7 +181,7 @@ rowView row =
     (List.map cellView row) ++ [ br [ style [ ("clear", "left") ] ] [] ]
 
 gridView grid =
-    div [] (List.concatMap rowView grid)
+    div [style [("float", "left")]] (List.concatMap rowView grid)
 
 outcomes stepHistory =
     let positionPairs = stepHistory |> List.map (\step -> (.isPositionMatch step, .triedPositionMatch step))
@@ -195,6 +195,19 @@ outcomes stepHistory =
                 (False, True) -> Just FalseHit
                 (False, False) -> Nothing)
 
+buttonStyle = style [ ("font-size", "130%") ]
+
+resizeButtons address =
+    [ div [] [ button [onClick address DecreaseSize, buttonStyle] [text "<<"] ]
+    , div [] [ button [onClick address IncreaseSize, buttonStyle] [text ">>"] ]
+    ]
+
+matchButtons address =
+    [ button [onClick address (TryMatch PositionDimension), buttonStyle] [text "Position match!"]
+    , button [onClick address (TryMatch NumberDimension), buttonStyle] [text "Number match!"]
+    , div [] [ button [onClick address Stop, buttonStyle] [text "Stop"] ]
+    ]
+
 view : Signal.Address Action -> Model -> Html
 view address model =
     let previousOutcomes = outcomes (.stepHistory model |> List.drop 1)
@@ -202,20 +215,15 @@ view address model =
     in
         div [] [ h1 [] [text "Dual 2-Back"]
                , p [] [a [Html.Attributes.href "https://en.wikipedia.org/wiki/N-back"] [text "What is n-back?"]]
-               , gridView (.grid model)
+               , span [] [ gridView (.grid model)
+                         , div [] (if (.startTime model) == 0 then resizeButtons address else [])
+                         ]
+               , br [ style [ ("clear", "left") ] ] []
                , div [] (
                      if (.startTime model) > 0 then
-                         [ button [onClick address (TryMatch PositionDimension)] [text "Position match!"]
-                         , button [onClick address (TryMatch NumberDimension)] [text "Number match!"]
-                         , div [onClick address Stop] [ button [] [text "Stop"] ]
-                         ]
+                         matchButtons address
                      else
-                         [ button [onClick address Start] [text "Start"]
-                         , div [] [ button [onClick address DecreaseSize] [text "-"]
-                                  , text "Size"
-                                  , button [onClick address IncreaseSize] [text "+"]
-                                  ]
-                         ])
+                         [ button [onClick address Start, buttonStyle] [text "Start"] ])
                , div [] ["Hits: " ++ (countOutcome Hit |> toString) |> text]
                , div [] ["Misses: " ++ (countOutcome Miss |> toString) |> text]
                , div [] ["False hits: " ++ (countOutcome FalseHit |> toString) |> text]
