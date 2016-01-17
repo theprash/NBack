@@ -73,10 +73,10 @@ updateStep model =
 update : Action -> Model -> (Model, Effects Action)
 update action model =
     case action of
-        Tick t ->
-            ( if (.startTime model) > 0 && (t - (.stepTime model) > 3 * Time.second)
-                 then model |> updateTick t |> updateStep
-                 else model |> updateTick t
+        Tick time ->
+            ( if (.startTime model) > 0 && (time - (.stepTime model) > 3 * Time.second)
+                 then model |> updateTick time |> updateStep
+                 else model |> updateTick time
             , Effects.tick Tick
             )
         SetGridSize n ->
