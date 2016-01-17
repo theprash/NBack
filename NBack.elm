@@ -209,4 +209,7 @@ view address model =
                , div [] ["Misses: " ++ (countOutcome Miss |> toString) |> text]
                , div [] ["False hits: " ++ (countOutcome FalseHit |> toString) |> text]
                , div [] ["Steps: " ++ (model |> .stepHistory |> List.length |> toString) |> text]
+               , br [] []
+               , div [] [text "Written in ", a [Html.Attributes.href "http://elm-lang.org/"] [text "Elm"]]
+               , div [] [a [Html.Attributes.href "https://github.com/theprash/NBack"] [text "View the source code"]]
                ]
