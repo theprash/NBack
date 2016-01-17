@@ -12,12 +12,16 @@ import Time exposing (Time)
 
 emptyGrid size = [1..size] |> List.map (\_ -> [1..size] |> List.map (\_ -> Nothing))
 
+type alias StepPosition = Int
+type alias StepNumber = Int
+
 type alias Model =
     { gridSize : Int
-    , gridState : List (List (Maybe Int))
+    , grid : List (List (Maybe Int))
     , startTime : Time
     , stepInterval : Time
     , seed : Random.Seed
+    , stepValues : List (StepPosition, StepNumber)
     , time : Time
     }
 
@@ -27,10 +31,11 @@ init =
         (random, seed) = Random.generate (Random.int 1 9) (Random.initialSeed (floor 0.0))
     in
         ( { gridSize = initialSize
-          , gridState = emptyGrid initialSize
+          , grid = emptyGrid initialSize
           , startTime = 0
           , stepInterval = 3 * Time.second
           , seed = Random.initialSeed 0
+          , stepValues = []
           , time = 0
           }
         , Effects.tick Tick
@@ -48,14 +53,18 @@ update action model =
     case action of
 
         Tick t ->
-            ({ model | time = t } , Effects.tick Tick)
+            ( { model
+              | time = t
+              }
+              , Effects.tick Tick
+            )
 
         SetGridSize n ->
             let size = max 1 n
             in
                 ( { model
                   | gridSize = size
-                  , gridState = emptyGrid size
+                  , grid = emptyGrid size
                   }
                 , Effects.none
                 )
@@ -83,23 +92,23 @@ cellStyle =
           , ("border", "1px solid black")
           ]
 
-cellView cellState =
+cellView cell =
     let content =
-        case cellState of
+        case cell of
             Nothing -> []
             Just n -> [text (toString n)]
     in
         div [cellStyle] content
 
-rowView rowState =
-    (List.map cellView rowState) ++ [br [style [("clear", "left")]] []]
+rowView row =
+    (List.map cellView row) ++ [br [style [("clear", "left")]] []]
 
-gridView gridState =
-    div [] (List.concatMap rowView gridState)
+gridView grid =
+    div [] (List.concatMap rowView grid)
 
 view : Signal.Address Action -> Model -> Html
 view address model =
-    div [] [ gridView (.gridState model)
+    div [] [ gridView (.grid model)
            , button [onClick address Start] [text "Start"]
            , div [] [model |> toString |> text]
            ]
