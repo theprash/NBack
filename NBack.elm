@@ -58,6 +58,7 @@ type Action
     = Tick Time
     | SetGridSize Int
     | Start
+    | Stop
     | TryNumberMatch
 
 updateTick time model =
@@ -107,6 +108,13 @@ update action model =
                   }
                 , Effects.none
                 )
+        Stop ->
+            ( { model
+              | startTime = 0
+              , stepTime = 0
+              }
+            , Effects.none
+            )
         TryNumberMatch ->
             ( tryNumberMatch model
             , Effects.none
@@ -141,11 +149,11 @@ gridView grid =
 view : Signal.Address Action -> Model -> Html
 view address model =
     div [] [ gridView (.grid model)
-           , button [onClick address Start] [text "Start"]
            , div [] (
                  if (.startTime model) > 0 then
                      [ button [onClick address TryNumberMatch] [text "Number match!"]
-                     , button [] [text "Position match!"] ]
+                     , button [] [text "Position match!"]
+                     , div [onClick address Stop] [ button [] [text "Stop"] ] ]
                  else
-                     [] )
+                     [ button [onClick address Start] [text "Start"] ] )
            , div [] [model |> toString |> text] ]
