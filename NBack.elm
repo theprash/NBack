@@ -66,7 +66,8 @@ type Dimension = PositionDimension | NumberDimension
 
 type Action
     = Tick Time
-    | SetGridSize Int
+    | DecreaseSize
+    | IncreaseSize
     | Start
     | Stop
     | TryMatch Dimension
@@ -108,6 +109,12 @@ tryMatch dimension model =
             steps -> steps
     }
 
+changeSize size model =
+    { model
+    | gridSize = size
+    , grid = makeGrid size Nothing
+    }
+
 update : Action -> Model -> (Model, Effects Action)
 update action model =
     case action of
@@ -117,15 +124,14 @@ update action model =
                  else model |> updateTick time
             , Effects.tick Tick
             )
-        SetGridSize n ->
-            let size = max 1 n
+        DecreaseSize ->
+            let size = max 2 ((.gridSize model) - 1)
             in
-                ( { model
-                  | gridSize = size
-                  , grid = makeGrid size Nothing
-                  }
-                , Effects.none
-                )
+                ( changeSize size model , Effects.none)
+        IncreaseSize ->
+            let size = (.gridSize model) + 1
+            in
+                ( changeSize size model , Effects.none)
         Start ->
             let startingSeed = Random.initialSeed (model |> .time |> floor)
             in
@@ -204,7 +210,12 @@ view address model =
                          , div [onClick address Stop] [ button [] [text "Stop"] ]
                          ]
                      else
-                         [ button [onClick address Start] [text "Start"] ] )
+                         [ button [onClick address Start] [text "Start"]
+                         , div [] [ button [onClick address DecreaseSize] [text "-"]
+                                  , text "Size"
+                                  , button [onClick address IncreaseSize] [text "+"]
+                                  ]
+                         ])
                , div [] ["Hits: " ++ (countOutcome Hit |> toString) |> text]
                , div [] ["Misses: " ++ (countOutcome Miss |> toString) |> text]
                , div [] ["False hits: " ++ (countOutcome FalseHit |> toString) |> text]
