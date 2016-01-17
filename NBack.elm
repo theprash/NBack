@@ -194,7 +194,9 @@ view address model =
     let previousOutcomes = outcomes (.stepHistory model |> List.drop 1)
         countOutcome outcome = previousOutcomes |> List.filter ((==) outcome) |> List.length
     in
-        div [] [ gridView (.grid model)
+        div [] [ h1 [] [text "Dual 2-Back"]
+               , p [] [a [Html.Attributes.href "https://en.wikipedia.org/wiki/N-back"] [text "What is n-back?"]]
+               , gridView (.grid model)
                , div [] (
                      if (.startTime model) > 0 then
                          [ button [onClick address (TryMatch PositionDimension)] [text "Position match!"]
