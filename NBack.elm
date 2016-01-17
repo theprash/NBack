@@ -141,6 +141,7 @@ update action model =
             ( { model
               | startTime = 0
               , stepTime = 0
+              , grid = makeGrid (.gridSize model) Nothing
               }
             , Effects.none
             )
@@ -205,4 +206,5 @@ view address model =
                , div [] ["Hits: " ++ (countOutcome Hit |> toString) |> text]
                , div [] ["Misses: " ++ (countOutcome Miss |> toString) |> text]
                , div [] ["False hits: " ++ (countOutcome FalseHit |> toString) |> text]
+               , div [] ["Steps: " ++ (model |> .stepHistory |> List.length |> toString) |> text]
                ]
