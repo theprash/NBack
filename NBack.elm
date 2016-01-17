@@ -39,7 +39,6 @@ type alias Model =
 init : (Model, Effects Action)
 init =
     let initialSize = 3
-        (random, seed) = Random.generate (Random.int 1 9) (Random.initialSeed (floor 0.0))
     in
         ( { gridSize = initialSize
           , grid = makeGrid initialSize Nothing
@@ -64,17 +63,22 @@ updateTick time model =
     { model | time = time }
 
 updateStep model =
-    { model
-    | time = .time model
-    , grid = makeGrid (.gridSize model) (Just (1,2))
-    , stepTime = .time model
-    }
+    let positionsCount = (.gridSize model) ^ 2
+        (position, seed1) = Random.generate (Random.int 0 (positionsCount - 1)) (.seed model)
+        (number, seed2) = Random.generate (Random.int 1 positionsCount) seed1
+    in
+        { model
+        | time = .time model
+        , grid = makeGrid (.gridSize model) (Just (position, number))
+        , seed = seed2
+        , stepTime = .time model
+        }
 
 update : Action -> Model -> (Model, Effects Action)
 update action model =
     case action of
         Tick time ->
-            ( if (.startTime model) > 0 && (time - (.stepTime model) > 3 * Time.second)
+            ( if (.startTime model) > 0 && (time - (.stepTime model) > (.stepInterval model))
                  then model |> updateTick time |> updateStep
                  else model |> updateTick time
             , Effects.tick Tick
