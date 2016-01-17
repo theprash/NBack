@@ -10,7 +10,17 @@ import Time exposing (Time)
 
 -- MODEL
 
-emptyGrid size = [1..size] |> List.map (\_ -> [1..size] |> List.map (\_ -> Nothing))
+makeGrid size step =
+    [0..size - 1]
+    |> List.map (\r ->
+        [0..size - 1]
+        |> List.map (\c ->
+            case step of
+                Just (position, number) ->
+                    if (r, c) == (position // size, position % size) then Just number
+                    else Nothing
+                Nothing ->
+                    Nothing))
 
 type alias StepPosition = Int
 type alias StepNumber = Int
@@ -31,7 +41,7 @@ init =
         (random, seed) = Random.generate (Random.int 1 9) (Random.initialSeed (floor 0.0))
     in
         ( { gridSize = initialSize
-          , grid = emptyGrid initialSize
+          , grid = makeGrid initialSize Nothing
           , startTime = 0
           , stepInterval = 3 * Time.second
           , seed = Random.initialSeed 0
@@ -64,7 +74,7 @@ update action model =
             in
                 ( { model
                   | gridSize = size
-                  , grid = emptyGrid size
+                  , grid = makeGrid size Nothing
                   }
                 , Effects.none
                 )
