@@ -191,8 +191,8 @@ outcomes stepHistory =
 
 view : Signal.Address Action -> Model -> Html
 view address model =
-    let outcomeList = outcomes (.stepHistory model)
-        countOutcome outcome = outcomeList |> List.filter ((==) outcome) |> List.length
+    let previousOutcomes = outcomes (.stepHistory model |> List.drop 1)
+        countOutcome outcome = previousOutcomes |> List.filter ((==) outcome) |> List.length
     in
         div [] [ gridView (.grid model)
                , div [] (
