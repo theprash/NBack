@@ -23,6 +23,7 @@ type alias Step =
 
 type alias Model =
     { gridSize : Int
+    , n : Int
     , grid : List (List (Maybe Int))
     , startTime : Time
     , stepTime : Time
@@ -49,6 +50,7 @@ init =
     let initialSize = 3
     in
         ( { gridSize = initialSize
+          , n = 2
           , grid = makeGrid initialSize Nothing
           , startTime = 0
           , stepTime = 0
@@ -68,6 +70,8 @@ type Action
     = Tick Time
     | DecreaseSize
     | IncreaseSize
+    | DecreaseN
+    | IncreaseN
     | Start
     | Stop
     | TryMatch Dimension
@@ -79,7 +83,7 @@ nextStep model =
     let positionsCount = (.gridSize model) ^ 2
         (position, seed1) = Random.generate (Random.int 0 (positionsCount - 1)) (.seed model)
         (number, seed2) = Random.generate (Random.int 1 positionsCount) seed1
-        nBackStep = model |> .stepHistory |> List.drop (2 - 1) |> List.head
+        nBackStep = model |> .stepHistory |> List.drop ((.n model) - 1) |> List.head
         nextStep = { position = position
                    , number = number
                    , isPositionMatch = Just position == (nBackStep |> Maybe.map .position)
@@ -132,6 +136,10 @@ update action model =
             let size = (.gridSize model) + 1
             in
                 ( changeSize size model , Effects.none)
+        DecreaseN ->
+            ( { model | n = (max 1 (.n model - 1)) } , Effects.none )
+        IncreaseN ->
+            ( { model | n = (.n model + 1) } , Effects.none )
         Start ->
             let startingSeed = Random.initialSeed (model |> .time |> floor)
             in
@@ -195,25 +203,38 @@ outcomes stepHistory =
                 (False, True) -> Just FalseHit
                 (False, False) -> Nothing)
 
-buttonStyle = style [ ("font-size", "130%") ]
+big = style [ ("font-size", "130%") ]
+
+nView address n =
+    div [style [("float", "left")]] [ button [onClick address IncreaseN] [text "+"]
+                                    , div [] [ n |> toString |> text]
+                                    , button [onClick address DecreaseN] [text "-"]
+                                    ]
 
 resizeButtons address =
-    [ div [] [ button [onClick address DecreaseSize, buttonStyle] [text "<<"] ]
-    , div [] [ button [onClick address IncreaseSize, buttonStyle] [text ">>"] ]
+    [ div [] [ button [onClick address DecreaseSize, big] [text "<<"] ]
+    , div [] [ button [onClick address IncreaseSize, big] [text ">>"] ]
     ]
 
 matchButtons address =
-    [ button [onClick address (TryMatch PositionDimension), buttonStyle] [text "Position match!"]
-    , button [onClick address (TryMatch NumberDimension), buttonStyle] [text "Number match!"]
-    , div [] [ button [onClick address Stop, buttonStyle] [text "Stop"] ]
+    [ button [onClick address (TryMatch PositionDimension), big] [text "Position match!"]
+    , button [onClick address (TryMatch NumberDimension), big] [text "Number match!"]
+    , div [] [ button [onClick address Stop, big] [text "Stop"] ]
     ]
+
+titleView address n =
+    h1 [] [ div [style [("float", "left")]] [text "Dual "]
+          , nView address n
+          , div [style [("float", "left")]] [text "-Back"]
+          , br [ style [ ("clear", "left") ] ] []
+          ]
 
 view : Signal.Address Action -> Model -> Html
 view address model =
     let previousOutcomes = outcomes (.stepHistory model |> List.drop 1)
         countOutcome outcome = previousOutcomes |> List.filter ((==) outcome) |> List.length
     in
-        div [] [ h1 [] [text "Dual 2-Back"]
+        div [] [ titleView address (.n model)
                , p [] [a [Html.Attributes.href "https://en.wikipedia.org/wiki/N-back"] [text "What is n-back?"]]
                , span [] [ gridView (.grid model)
                          , div [] (if (.startTime model) == 0 then resizeButtons address else [])
@@ -223,7 +244,7 @@ view address model =
                      if (.startTime model) > 0 then
                          matchButtons address
                      else
-                         [ button [onClick address Start, buttonStyle] [text "Start"] ])
+                         [ button [onClick address Start, big] [text "Start"] ])
                , div [] ["Hits: " ++ (countOutcome Hit |> toString) |> text]
                , div [] ["Misses: " ++ (countOutcome Miss |> toString) |> text]
                , div [] ["False hits: " ++ (countOutcome FalseHit |> toString) |> text]
