@@ -72,6 +72,7 @@ updateStep model =
         , grid = makeGrid (.gridSize model) (Just (position, number))
         , seed = seed2
         , stepTime = .time model
+        , stepValues = (position, number) :: (.stepValues model)
         }
 
 update : Action -> Model -> (Model, Effects Action)
@@ -99,6 +100,7 @@ update action model =
                   | startTime = (model |> .time)
                   , stepTime = (model |> .time)
                   , seed = startingSeed
+                  , stepValues = []
                   }
                 , Effects.none
                 )
