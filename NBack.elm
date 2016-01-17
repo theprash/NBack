@@ -29,6 +29,7 @@ type alias Model =
     { gridSize : Int
     , grid : List (List (Maybe Int))
     , startTime : Time
+    , stepTime : Time
     , stepInterval : Time
     , seed : Random.Seed
     , stepValues : List (StepPosition, StepNumber)
@@ -43,6 +44,7 @@ init =
         ( { gridSize = initialSize
           , grid = makeGrid initialSize Nothing
           , startTime = 0
+          , stepTime = 0
           , stepInterval = 3 * Time.second
           , seed = Random.initialSeed 0
           , stepValues = []
@@ -58,17 +60,25 @@ type Action
     | SetGridSize Int
     | Start
 
+updateTick time model =
+    { model | time = time }
+
+updateStep model =
+    { model
+    | time = .time model
+    , grid = makeGrid (.gridSize model) (Just (1,2))
+    , stepTime = .time model
+    }
+
 update : Action -> Model -> (Model, Effects Action)
 update action model =
     case action of
-
         Tick t ->
-            ( { model
-              | time = t
-              }
-              , Effects.tick Tick
+            ( if (.startTime model) > 0 && (t - (.stepTime model) > 3 * Time.second)
+                 then model |> updateTick t |> updateStep
+                 else model |> updateTick t
+            , Effects.tick Tick
             )
-
         SetGridSize n ->
             let size = max 1 n
             in
@@ -78,12 +88,12 @@ update action model =
                   }
                 , Effects.none
                 )
-
         Start ->
             let startingSeed = Random.initialSeed (model |> .time |> floor)
             in
                 ( { model
                   | startTime = (model |> .time)
+                  , stepTime = (model |> .time)
                   , seed = startingSeed
                   }
                 , Effects.none
