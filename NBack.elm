@@ -3,6 +3,8 @@ module NBack where
 import Effects exposing (Effects)
 import Html exposing (..)
 import Html.Attributes exposing (style)
+import Html.Events exposing (onClick)
+import Random
 import Time exposing (Time)
 
 
@@ -13,15 +15,22 @@ emptyGrid size = [1..size] |> List.map (\_ -> [1..size] |> List.map (\_ -> Nothi
 type alias Model =
     { gridSize : Int
     , gridState : List (List (Maybe Int))
+    , startTime : Time
+    , stepInterval : Time
+    , seed : Random.Seed
     , time : Time
     }
 
 init : (Model, Effects Action)
 init =
     let initialSize = 3
+        (random, seed) = Random.generate (Random.int 1 9) (Random.initialSeed (floor 0.0))
     in
         ( { gridSize = initialSize
           , gridState = emptyGrid initialSize
+          , startTime = 0
+          , stepInterval = 3 * Time.second
+          , seed = Random.initialSeed 0
           , time = 0
           }
         , Effects.tick Tick
@@ -32,10 +41,11 @@ init =
 type Action
     = Tick Time
     | SetGridSize Int
+    | Start
 
 update : Action -> Model -> (Model, Effects Action)
-update msg model =
-    case msg of
+update action model =
+    case action of
 
         Tick t ->
             ({ model | time = t } , Effects.tick Tick)
@@ -46,6 +56,16 @@ update msg model =
                 ( { model
                   | gridSize = size
                   , gridState = emptyGrid size
+                  }
+                , Effects.none
+                )
+
+        Start ->
+            let startingSeed = Random.initialSeed (model |> .time |> floor)
+            in
+                ( { model
+                  | startTime = (model |> .time)
+                  , seed = startingSeed
                   }
                 , Effects.none
                 )
@@ -80,5 +100,6 @@ gridView gridState =
 view : Signal.Address Action -> Model -> Html
 view address model =
     div [] [ gridView (.gridState model)
+           , button [onClick address Start] [text "Start"]
            , div [] [model |> toString |> text]
            ]
