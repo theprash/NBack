@@ -1,12 +1,12 @@
 module NBack where
 
+import Array
 import Effects exposing (Effects)
 import Html exposing (..)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Random
 import Time exposing (Time)
-
 
 -- MODEL
 
@@ -22,8 +22,14 @@ makeGrid size step =
                 Nothing ->
                     Nothing))
 
-type alias StepPosition = Int
-type alias StepNumber = Int
+type alias Step =
+    { position : Int
+    , number : Int
+    , isPositionMatch : Bool
+    , isNumberMatch : Bool
+    , triedPositionMatch : Bool
+    , triedNumberMatch : Bool
+    }
 
 type alias Model =
     { gridSize : Int
@@ -32,7 +38,7 @@ type alias Model =
     , stepTime : Time
     , stepInterval : Time
     , seed : Random.Seed
-    , stepValues : List (StepPosition, StepNumber)
+    , stepHistory : List Step
     , time : Time
     }
 
@@ -46,7 +52,7 @@ init =
           , stepTime = 0
           , stepInterval = 3 * Time.second
           , seed = Random.initialSeed 0
-          , stepValues = []
+          , stepHistory = []
           , time = 0
           }
         , Effects.tick Tick
@@ -54,12 +60,14 @@ init =
 
 -- UPDATE
 
+type Dimension = PositionDimension | NumberDimension
+
 type Action
     = Tick Time
     | SetGridSize Int
     | Start
     | Stop
-    | TryNumberMatch
+    | TryMatch Dimension
 
 updateTick time model =
     { model | time = time }
@@ -68,16 +76,35 @@ nextStep model =
     let positionsCount = (.gridSize model) ^ 2
         (position, seed1) = Random.generate (Random.int 0 (positionsCount - 1)) (.seed model)
         (number, seed2) = Random.generate (Random.int 1 positionsCount) seed1
+        nBackStep = model |> .stepHistory |> List.drop (2 - 1) |> List.head
+        nextStep = { position = position
+                   , number = number
+                   , isPositionMatch = Just position == (nBackStep |> Maybe.map .position)
+                   , isNumberMatch = Just number == (nBackStep |> Maybe.map .number)
+                   , triedPositionMatch = False
+                   , triedNumberMatch = False
+                   }
     in
         { model
         | time = .time model
         , grid = makeGrid (.gridSize model) (Just (position, number))
         , seed = seed2
         , stepTime = .time model
-        , stepValues = (position, number) :: (.stepValues model)
+        , stepHistory = nextStep :: (.stepHistory model)
         }
 
-tryNumberMatch model = model
+tryMatch dimension model =
+    { model
+    | stepHistory =
+        case (.stepHistory model) of
+            step :: rest ->
+                case dimension of
+                    PositionDimension ->
+                        { step | triedPositionMatch = True } :: rest
+                    NumberDimension ->
+                        { step | triedNumberMatch = True } :: rest
+            steps -> steps
+    }
 
 update : Action -> Model -> (Model, Effects Action)
 update action model =
@@ -104,7 +131,7 @@ update action model =
                   | startTime = (model |> .time)
                   , stepTime = (model |> .time)
                   , seed = startingSeed
-                  , stepValues = []
+                  , stepHistory = []
                   }
                 , Effects.none
                 )
@@ -115,8 +142,8 @@ update action model =
               }
             , Effects.none
             )
-        TryNumberMatch ->
-            ( tryNumberMatch model
+        TryMatch dimension ->
+            ( tryMatch dimension model
             , Effects.none
             )
 
@@ -130,7 +157,8 @@ cellStyle =
           , ("line-height", "50px")
           , ("text-align", "center")
           , ("vertical-align", "middle")
-          , ("border", "1px solid black") ]
+          , ("border", "1px solid black")
+          ]
 
 cellView cell =
     let content =
@@ -146,14 +174,42 @@ rowView row =
 gridView grid =
     div [] (List.concatMap rowView grid)
 
+hits stepHistory =
+    stepHistory
+    |> List.foldl (\step acc ->
+        acc
+            + (if (.isPositionMatch step) && (.triedPositionMatch step) then 1 else 0)
+            + (if (.isNumberMatch step) && (.triedNumberMatch step) then 1 else 0))
+        0
+
+misses stepHistory =
+    stepHistory
+    |> List.foldl (\step acc ->
+        acc
+            + (if (.isPositionMatch step) && (.triedPositionMatch step |> not) then 1 else 0)
+            + (if (.isNumberMatch step) && (.triedNumberMatch step |> not) then 1 else 0))
+        0
+
+falseHits stepHistory =
+    stepHistory
+    |> List.foldl (\step acc ->
+        acc
+            + (if (.isPositionMatch step |> not) && (.triedPositionMatch step) then 1 else 0)
+            + (if (.isNumberMatch step |> not) && (.triedNumberMatch step) then 1 else 0))
+        0
+
 view : Signal.Address Action -> Model -> Html
 view address model =
     div [] [ gridView (.grid model)
            , div [] (
                  if (.startTime model) > 0 then
-                     [ button [onClick address TryNumberMatch] [text "Number match!"]
-                     , button [] [text "Position match!"]
-                     , div [onClick address Stop] [ button [] [text "Stop"] ] ]
+                     [ button [onClick address (TryMatch PositionDimension)] [text "Position match!"]
+                     , button [onClick address (TryMatch NumberDimension)] [text "Number match!"]
+                     , div [onClick address Stop] [ button [] [text "Stop"] ]
+                     ]
                  else
                      [ button [onClick address Start] [text "Start"] ] )
-           , div [] [model |> toString |> text] ]
+           , div [] ["Hits: " ++ (model |> .stepHistory |> hits |> toString) |> text]
+           , div [] ["Misses: " ++ (model |> .stepHistory |> misses |> toString) |> text]
+           , div [] ["False hits: " ++ (model |> .stepHistory |> falseHits |> toString) |> text]
+           ]
