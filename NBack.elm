@@ -58,11 +58,12 @@ type Action
     = Tick Time
     | SetGridSize Int
     | Start
+    | TryNumberMatch
 
 updateTick time model =
     { model | time = time }
 
-updateStep model =
+nextStep model =
     let positionsCount = (.gridSize model) ^ 2
         (position, seed1) = Random.generate (Random.int 0 (positionsCount - 1)) (.seed model)
         (number, seed2) = Random.generate (Random.int 1 positionsCount) seed1
@@ -75,12 +76,14 @@ updateStep model =
         , stepValues = (position, number) :: (.stepValues model)
         }
 
+tryNumberMatch model = model
+
 update : Action -> Model -> (Model, Effects Action)
 update action model =
     case action of
         Tick time ->
             ( if (.startTime model) > 0 && (time - (.stepTime model) > (.stepInterval model))
-                 then model |> updateTick time |> updateStep
+                 then model |> updateTick time |> nextStep
                  else model |> updateTick time
             , Effects.tick Tick
             )
@@ -104,6 +107,10 @@ update action model =
                   }
                 , Effects.none
                 )
+        TryNumberMatch ->
+            ( tryNumberMatch model
+            , Effects.none
+            )
 
 -- VIEW
 
@@ -115,8 +122,7 @@ cellStyle =
           , ("line-height", "50px")
           , ("text-align", "center")
           , ("vertical-align", "middle")
-          , ("border", "1px solid black")
-          ]
+          , ("border", "1px solid black") ]
 
 cellView cell =
     let content =
@@ -127,7 +133,7 @@ cellView cell =
         div [cellStyle] content
 
 rowView row =
-    (List.map cellView row) ++ [br [style [("clear", "left")]] []]
+    (List.map cellView row) ++ [ br [ style [ ("clear", "left") ] ] [] ]
 
 gridView grid =
     div [] (List.concatMap rowView grid)
@@ -136,5 +142,10 @@ view : Signal.Address Action -> Model -> Html
 view address model =
     div [] [ gridView (.grid model)
            , button [onClick address Start] [text "Start"]
-           , div [] [model |> toString |> text]
-           ]
+           , div [] (
+                 if (.startTime model) > 0 then
+                     [ button [onClick address TryNumberMatch] [text "Number match!"]
+                     , button [] [text "Position match!"] ]
+                 else
+                     [] )
+           , div [] [model |> toString |> text] ]
